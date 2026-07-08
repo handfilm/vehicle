@@ -1,0 +1,86 @@
+[
+  {
+    "kind": "signature",
+    "slug": "back-01",
+    "title": "Back 01",
+    "src": "assets/signature-back-01.jpg",
+    "isVideo": false
+  },
+  {
+    "kind": "signature",
+    "slug": "back-02",
+    "title": "Back 02",
+    "src": "assets/signature-back-02.jpg",
+    "isVideo": false
+  },
+  {
+    "kind": "signature",
+    "slug": "tension-a",
+    "title": "Tension A",
+    "src": "assets/signature-tension-a.jpg",
+    "isVideo": false
+  },
+  {
+    "kind": "core",
+    "slug": "ash",
+    "title": "Ash",
+    "src": "assets/core-ash.jpg",
+    "isVideo": false
+  },
+  {
+    "kind": "core",
+    "slug": "concrete",
+    "title": "Concrete",
+    "src": "assets/core-concrete.jpg",
+    "isVideo": false
+  },
+  {
+    "kind": "core",
+    "slug": "void-a",
+    "title": "Void A",
+    "src": "assets/core-void-a.jpg",
+    "isVideo": false
+  },
+  {
+    "kind": "hook",
+    "slug": "flex-01",
+    "title": "Flex 01",
+    "src": "assets/hook-flex-01.jpg",
+    "isVideo": false
+  },
+  {
+    "kind": "hook",
+    "slug": "pose-b",
+    "title": "Pose B",
+    "src": "assets/hook-pose-b.jpg",
+    "isVideo": false
+  },
+  {
+    "kind": "hook",
+    "slug": "wet-a",
+    "title": "Wet A",
+    "src": "assets/hook-wet-a.jpg",
+    "isVideo": false
+  },
+  {
+    "kind": "elegance",
+    "slug": "gaze-a",
+    "title": "Gaze A",
+    "src": "assets/elegance-gaze-a.jpg",
+    "isVideo": false
+  },
+  {
+    "kind": "elegance",
+    "slug": "saree-01",
+    "title": "Saree 01",
+    "src": "assets/elegance-saree-01.jpg",
+    "isVideo": false
+  },
+  {
+    "kind": "elegance",
+    "slug": "smoke",
+    "title": "Smoke",
+    "src": "assets/elegance-smoke.jpg",
+    "isVideo": false
+  }
+]

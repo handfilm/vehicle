@@ -3,339 +3,218 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HVT // HIGH VOLTAGE TEST — JP→BD THESIS VALIDATOR</title>
-<style>
-/* ============ TOKENS ============ */
-:root{
-  --bg:#0a0a0a; --panel:#111111; --panel2:#161616;
-  --line:#2a2a2a; --line-hot:#3d3d3d;
-  --amber:#ffb000; --amber-dim:#8a6200; --amber-glow:rgba(255,176,0,.12);
-  --kill:#ff3b30; --go:#2bd96a; --mid:#ffd560;
-  --txt:#d8d4cc; --txt-dim:#7a766e;
-  --mono:"JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-}
-*{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:14px;line-height:1.5}
-button{font-family:var(--mono);cursor:pointer}
-input,textarea{font-family:var(--mono);background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:8px 10px;font-size:13px;width:100%}
-input:focus,textarea:focus,button:focus-visible{outline:2px solid var(--amber);outline-offset:1px}
-::placeholder{color:var(--txt-dim)}
-
-/* ============ FRAME ============ */
-.wrap{max-width:1100px;margin:0 auto;padding:0 16px 80px}
-header{border-bottom:1px solid var(--line);padding:18px 0;display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}
-.brand{font-size:15px;font-weight:800;letter-spacing:.18em;color:var(--amber)}
-.brand small{color:var(--txt-dim);font-weight:400;letter-spacing:.08em;display:block;font-size:11px;margin-top:2px}
-.sys{font-size:11px;color:var(--txt-dim);letter-spacing:.1em;text-align:right}
-
-.eyebrow{font-size:10px;letter-spacing:.25em;color:var(--amber-dim);text-transform:uppercase;margin-bottom:8px}
-section{margin-top:36px}
-
-/* ============ GAUGE (signature) ============ */
-.gauge-block{border:1px solid var(--line);background:var(--panel);padding:24px}
-.gauge-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap;gap:12px}
-.gauge-title{font-size:22px;font-weight:800;letter-spacing:.06em}
-.verdict{font-size:13px;font-weight:800;letter-spacing:.2em;padding:6px 14px;border:1px solid currentColor}
-.v-kill{color:var(--kill)} .v-mid{color:var(--mid)} .v-go{color:var(--go)} .v-idle{color:var(--txt-dim)}
-.rail{position:relative;height:34px;background:var(--panel2);border:1px solid var(--line-hot);overflow:hidden}
-.rail .fill{position:absolute;inset:0 auto 0 0;width:0%;background:repeating-linear-gradient(90deg,var(--amber) 0 6px,#c98a00 6px 12px);transition:width .5s cubic-bezier(.2,.9,.3,1)}
-.rail .ticks{position:absolute;inset:0;display:flex}
-.rail .ticks i{flex:1;border-right:1px solid rgba(0,0,0,.45)}
-.rail .marker{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--txt-dim)}
-.rail .marker.m40{left:40%} .rail .marker.m70{left:70%;background:var(--go)}
-.gauge-meta{display:flex;justify-content:space-between;margin-top:8px;font-size:11px;color:var(--txt-dim);letter-spacing:.08em}
-.volt-readout{font-size:40px;font-weight:800;color:var(--amber);text-shadow:0 0 24px var(--amber-glow);font-variant-numeric:tabular-nums}
-.gauge-sub{margin-top:14px;font-size:12px;color:var(--txt-dim);max-width:62ch}
-
-/* ============ STATS STRIP ============ */
-.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border:1px solid var(--line);border-top:none}
-.strip .cell{padding:12px 14px;border-right:1px solid var(--line);background:var(--panel)}
-.strip .cell:last-child{border-right:none}
-.strip b{display:block;font-size:20px;color:var(--txt);font-variant-numeric:tabular-nums}
-.strip span{font-size:10px;letter-spacing:.15em;color:var(--txt-dim);text-transform:uppercase}
-
-/* ============ INTERVIEW GRID ============ */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(196px,1fr));gap:10px}
-.slot{border:1px solid var(--line);background:var(--panel);padding:12px;text-align:left;color:var(--txt);transition:border-color .15s}
-.slot:hover{border-color:var(--amber-dim)}
-.slot.active{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber)}
-.slot .id{font-size:10px;color:var(--amber-dim);letter-spacing:.2em}
-.slot .nm{font-size:13px;font-weight:700;margin:4px 0;min-height:1.4em;word-break:break-word}
-.slot .sc{font-size:11px;color:var(--txt-dim)}
-.slot .bar{height:4px;background:var(--panel2);margin-top:8px;border:1px solid var(--line)}
-.slot .bar i{display:block;height:100%;background:var(--amber);width:0%}
-.slot.done .id{color:var(--go)}
-
-/* ============ PROBE PANEL ============ */
-.probe{border:1px solid var(--amber);background:var(--panel);padding:20px;margin-top:14px}
-.probe h3{font-size:14px;letter-spacing:.1em;color:var(--amber);margin-bottom:14px}
-.frow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-@media(max-width:640px){.frow{grid-template-columns:1fr}}
-.q{border-top:1px solid var(--line);padding:14px 0}
-.q .qt{font-size:13px;margin-bottom:4px}
-.q .qb{font-size:11px;color:var(--txt-dim);margin-bottom:10px;max-width:70ch}
-.opts{display:flex;gap:8px;flex-wrap:wrap}
-.opt{border:1px solid var(--line);background:var(--panel2);color:var(--txt-dim);padding:7px 12px;font-size:12px;letter-spacing:.04em}
-.opt:hover{border-color:var(--amber-dim);color:var(--txt)}
-.opt.sel0{border-color:var(--kill);color:var(--kill)}
-.opt.sel1{border-color:var(--mid);color:var(--mid)}
-.opt.sel2{border-color:var(--go);color:var(--go)}
-.probe-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
-.btn{border:1px solid var(--amber);background:transparent;color:var(--amber);padding:10px 18px;font-size:12px;letter-spacing:.15em;text-transform:uppercase}
-.btn:hover{background:var(--amber);color:#000}
-.btn.ghost{border-color:var(--line);color:var(--txt-dim)}
-.btn.ghost:hover{background:var(--line);color:var(--txt)}
-.btn.danger{border-color:var(--kill);color:var(--kill)}
-.btn.danger:hover{background:var(--kill);color:#000}
-
-/* ============ KILL CRITERIA ============ */
-.kc{border:1px solid var(--line);background:var(--panel);padding:18px}
-.kc .row{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line);font-size:13px}
-.kc .row:first-of-type{border-top:none}
-.kc .st{min-width:80px;font-size:10px;letter-spacing:.18em;padding:3px 8px;border:1px solid var(--line);text-align:center;color:var(--txt-dim)}
-.kc .st.armed{border-color:var(--kill);color:var(--kill)}
-.kc .st.clear{border-color:var(--go);color:var(--go)}
-
-/* ============ IO ============ */
-.io textarea{min-height:120px;font-size:11px}
-.io .btnrow{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
-.note{font-size:11px;color:var(--txt-dim);margin-top:8px}
-.flash{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--amber);color:#000;padding:8px 18px;font-size:12px;font-weight:700;letter-spacing:.1em;opacity:0;pointer-events:none;transition:opacity .25s}
-.flash.on{opacity:1}
-@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
-</style>
+<title>RAWX MOTION LAB — AI Character Consistency Experiment // HANDFILM</title>
+<meta name="description" content="Thousands of character-consistent AI motion clips for lingerie & activewear. A HANDFILM production.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="wrap">
 
-<header>
-  <div class="brand">HVT // HIGH VOLTAGE TEST<small>JP→BD VEHICLE INTELLIGENCE — THESIS VALIDATOR</small></div>
-  <div class="sys">FIELD UNIT 01 · DHAKA<br>STATE: IN-MEMORY · EXPORT BEFORE EXIT</div>
-</header>
-
-<!-- GAUGE -->
-<section>
-  <div class="eyebrow">Live Verdict</div>
-  <div class="gauge-block">
-    <div class="gauge-head">
-      <div>
-        <div class="gauge-title">MARKET VOLTAGE</div>
-        <div class="volt-readout" id="voltNum">0.0V</div>
-      </div>
-      <div class="verdict v-idle" id="verdict">NO SIGNAL</div>
-    </div>
-    <div class="rail">
-      <div class="fill" id="railFill"></div>
-      <div class="ticks">​<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-      <div class="marker m40"></div>
-      <div class="marker m70"></div>
-    </div>
-    <div class="gauge-meta"><span>0V — DEAD</span><span>4.0V — KILL LINE</span><span>7.0V — GO LINE</span><span>10V — LIVE WIRE</span></div>
-    <div class="gauge-sub">Voltage = weighted evidence across completed importer interviews. Below 4.0V after 6+ interviews: kill the thesis. Above 7.0V: build the margin engine. Between: recalibrate the probe, not the dream.</div>
-  </div>
-  <div class="strip">
-    <div class="cell"><b id="stDone">0/10</b><span>Interviews Done</span></div>
-    <div class="cell"><b id="stPain">—</b><span>Avg Pain</span></div>
-    <div class="cell"><b id="stPay">—</b><span>Would Pay</span></div>
-    <div class="cell"><b id="stManual">—</b><span>Still Manual</span></div>
-    <div class="cell"><b id="stRef">—</b><span>Gave Referral</span></div>
-  </div>
-</section>
-
-<!-- INTERVIEWS -->
-<section>
-  <div class="eyebrow">Field Targets — 10 Mid-Tier BARVIDA Importers</div>
-  <div class="grid" id="grid"></div>
-  <div id="probeHost"></div>
-</section>
-
-<!-- KILL CRITERIA -->
-<section>
-  <div class="eyebrow">Automatic Kill Criteria</div>
-  <div class="kc" id="killList"></div>
-</section>
-
-<!-- IO -->
-<section class="io">
-  <div class="eyebrow">State I/O — No Database, No Excuses</div>
-  <textarea id="ioBox" placeholder="Exported JSON appears here. Paste saved JSON and press LOAD to restore."></textarea>
-  <div class="btnrow">
-    <button class="btn" id="btnExport">Export JSON</button>
-    <button class="btn ghost" id="btnCopy">Copy</button>
-    <button class="btn ghost" id="btnLoad">Load</button>
-    <button class="btn danger" id="btnWipe">Wipe All</button>
-  </div>
-  <div class="note">State lives in memory only. Export after every session → paste into MCC log. That is the deployment log discipline.</div>
-</section>
-
-<div class="flash" id="flash">SAVED</div>
+<div id="boot" class="boot">
+  <div class="boot-line">RAWX MOTION LAB // HANDFILM</div>
+  <div class="boot-line boot-sub" id="boot-status">READING /assets REGISTRY…</div>
+  <div class="boot-bar"><span id="boot-bar-fill"></span></div>
 </div>
 
-<script>
-"use strict";
-/* ================= DATA ================= */
-const QUESTIONS = [
-  { k:"pain",   t:"Q1 — Landed-cost calculation before bidding",
-    b:"\u201cBid korar age landed cost ar expected Dhaka resale margin kivabe calculate koren?\u201d Score the friction in their current method.",
-    o:["Has a system / no pain","Semi-manual, some friction","Experience + Excel + WhatsApp chaos"] },
-  { k:"freq",   t:"Q2 — Decision frequency",
-    b:"How often do they face this bid/no-bid decision under time pressure?",
-    o:["Rarely / batch buyer","Weekly","Multiple lots per auction day"] },
-  { k:"loss",   t:"Q3 — Money lost to bad data",
-    b:"Have they eaten a loss from duty miscalc, FX swing, tampered sheet, or wrong resale estimate in last 12 months?",
-    o:["No / can't recall","Once, minor","Yes, named a specific painful loss"] },
-  { k:"pay",    t:"Q4 — Willingness to pay",
-    b:"\u201cIf a tool showed verified sheet + exact landed cost + Dhaka comp per lot, kotota dite raji hoben monthly?\u201d Do NOT suggest a number first.",
-    o:["Wouldn't pay / free only","Vague yes, no number","Named a real monthly figure"] },
-  { k:"ref",    t:"Q5 — Referral pull",
-    b:"Did they offer an intro to another importer without you asking twice?",
-    o:["No","After prompting","Volunteered immediately"] }
-];
-const WEIGHTS = { pain:1.2, freq:0.8, loss:1.0, pay:1.4, ref:0.6 }; // pay > pain > loss
-const MAXW = Object.values(WEIGHTS).reduce((a,b)=>a+b*2,0);
+<div class="shell">
 
-let state = { interviews: Array.from({length:10},(_,i)=>({ id:i+1, name:"", org:"", scores:{}, done:false })) };
-let activeIdx = null;
-
-/* ================= COMPUTE ================= */
-function ivScore(iv){
-  let s=0; for(const k in WEIGHTS){ s += (iv.scores[k] ?? 0) * WEIGHTS[k]; }
-  return s / MAXW; // 0..1
-}
-function computed(){
-  const done = state.interviews.filter(v=>v.done);
-  const n = done.length;
-  const volts = n ? done.reduce((a,v)=>a+ivScore(v),0)/n*10 : 0;
-  const avg = k => n ? done.reduce((a,v)=>a+(v.scores[k]??0),0)/n : null;
-  return {
-    n, volts,
-    pain: avg("pain"),
-    payHits: done.filter(v=>v.scores.pay===2).length,
-    manualHits: done.filter(v=>v.scores.pain===2).length,
-    refHits: done.filter(v=>(v.scores.ref??0)>=1).length
-  };
-}
-
-/* ================= RENDER ================= */
-const $ = id => document.getElementById(id);
-
-function renderGauge(){
-  const c = computed();
-  $("voltNum").textContent = c.volts.toFixed(1)+"V";
-  $("railFill").style.width = (c.volts*10)+"%";
-  const v = $("verdict");
-  if(c.n===0){ v.textContent="NO SIGNAL"; v.className="verdict v-idle"; }
-  else if(c.volts < 4){ v.textContent = c.n>=6 ? "KILL" : "WEAK SIGNAL"; v.className="verdict v-kill"; }
-  else if(c.volts < 7){ v.textContent="RECALIBRATE"; v.className="verdict v-mid"; }
-  else { v.textContent="GO — BUILD"; v.className="verdict v-go"; }
-
-  $("stDone").textContent = c.n+"/10";
-  $("stPain").textContent = c.pain==null?"—":(c.pain).toFixed(1)+"/2";
-  $("stPay").textContent = c.n?`${c.payHits}/${c.n}`:"—";
-  $("stManual").textContent = c.n?`${c.manualHits}/${c.n}`:"—";
-  $("stRef").textContent = c.n?`${c.refHits}/${c.n}`:"—";
-}
-
-function renderGrid(){
-  const g = $("grid"); g.innerHTML="";
-  state.interviews.forEach((iv,i)=>{
-    const b = document.createElement("button");
-    b.className = "slot"+(iv.done?" done":"")+(i===activeIdx?" active":"");
-    const pct = Math.round(ivScore(iv)*100);
-    b.innerHTML = `<div class="id">${iv.done?"\u25A0 LOGGED":"TARGET "+String(iv.id).padStart(2,"0")}</div>
-      <div class="nm">${esc(iv.name)||"<span style='color:var(--txt-dim)'>— unassigned —</span>"}</div>
-      <div class="sc">${iv.done?pct+"% signal":"open"}</div>
-      <div class="bar"><i style="width:${pct}%"></i></div>`;
-    b.addEventListener("click",()=>{ activeIdx = (activeIdx===i?null:i); render(); if(activeIdx!=null) $("probeHost").scrollIntoView({block:"start"}); });
-    g.appendChild(b);
-  });
-}
-
-function renderProbe(){
-  const host = $("probeHost"); 
-  if(activeIdx==null){ host.innerHTML=""; return; }
-  const iv = state.interviews[activeIdx];
-  const qHtml = QUESTIONS.map(q=>{
-    const cur = iv.scores[q.k];
-    const opts = q.o.map((label,score)=>{
-      const selCls = cur===score ? ` sel${score}` : "";
-      return `<button class="opt${selCls}" data-k="${q.k}" data-s="${score}">[${score}] ${esc(label)}</button>`;
-    }).join("");
-    return `<div class="q"><div class="qt">${esc(q.t)}</div><div class="qb">${esc(q.b)}</div><div class="opts">${opts}</div></div>`;
-  }).join("");
-  host.innerHTML = `<div class="probe">
-    <h3>PROBE // TARGET ${String(iv.id).padStart(2,"0")}</h3>
-    <div class="frow">
-      <input id="pName" placeholder="Importer name" value="${esc(iv.name)}">
-      <input id="pOrg" placeholder="Company / BARVIDA ref / intro source" value="${esc(iv.org)}">
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="side-top">
+      <a href="#/" class="side-logo" data-route="/">
+        <span class="side-logo-mark">RX</span>
+        <span class="side-logo-full">RAWX<br>MOTION<br>LAB</span>
+      </a>
     </div>
-    ${qHtml}
-    <div class="probe-actions">
-      <button class="btn" id="pSave">${iv.done?"Update Log":"Log Interview"}</button>
-      <button class="btn ghost" id="pClose">Close</button>
-      <button class="btn danger" id="pReset">Reset Target</button>
+
+    <nav class="side-nav" id="side-nav">
+      <div class="side-nav-label">PILLARS</div>
+      <a class="side-link" data-route="/signature" href="#/signature">
+        <span class="side-link-idx">01</span>
+        <span class="side-link-name">Signature</span>
+        <span class="side-link-sub">Lingerie Dynamics / Back Studies</span>
+      </a>
+      <a class="side-link" data-route="/core" href="#/core">
+        <span class="side-link-idx">02</span>
+        <span class="side-link-name">Core</span>
+        <span class="side-link-sub">Brand Infrastructure / Merch</span>
+      </a>
+      <a class="side-link" data-route="/hook" href="#/hook">
+        <span class="side-link-idx">03</span>
+        <span class="side-link-name">Hook</span>
+        <span class="side-link-sub">Anatomy &amp; Tension Dynamics</span>
+      </a>
+      <a class="side-link" data-route="/elegance" href="#/elegance">
+        <span class="side-link-idx">04</span>
+        <span class="side-link-name">Elegance</span>
+        <span class="side-link-sub">Facial Architecture / Micro-Expressions</span>
+      </a>
+    </nav>
+
+    <div class="side-bottom">
+      <div class="side-stat-row"><span>REGISTRY</span><b id="stat-source">—</b></div>
+      <div class="side-stat-row"><span>ASSETS</span><b id="stat-total">0</b></div>
+      <div class="side-stat-row"><span>PINNED</span><b id="stat-pinned">0</b></div>
+      <button class="side-board-btn" id="open-board-btn">
+        <span>BOARD</span><span id="side-board-count">0</span>
+      </button>
     </div>
-  </div>`;
+  </aside>
 
-  host.querySelectorAll(".opt").forEach(el=>el.addEventListener("click",()=>{
-    iv.scores[el.dataset.k] = Number(el.dataset.s); renderProbe(); 
-  }));
-  $("pName").addEventListener("input",e=>iv.name=e.target.value);
-  $("pOrg").addEventListener("input",e=>iv.org=e.target.value);
-  $("pSave").addEventListener("click",()=>{
-    if(Object.keys(iv.scores).length < QUESTIONS.length){ flash("SCORE ALL 5 PROBES FIRST"); return; }
-    iv.done = true; activeIdx=null; render(); flash("INTERVIEW LOGGED — EXPORT JSON");
-  });
-  $("pClose").addEventListener("click",()=>{ activeIdx=null; render(); });
-  $("pReset").addEventListener("click",()=>{ iv.scores={}; iv.done=false; render(); });
-}
+  <!-- ================= MAIN ================= -->
+  <main class="main" id="main">
 
-function renderKill(){
-  const c = computed();
-  const rules = [
-    { t:"6+ interviews done and voltage < 4.0V → thesis dead. No patriarch pitch.", armed: c.n>=6 && c.volts<4, eval: c.n>=6 },
-    { t:"0 importers named a real price after 5+ interviews → no revenue thesis.", armed: c.n>=5 && c.payHits===0, eval: c.n>=5 },
-    { t:"Majority already have a working system (pain=0) → gap is imaginary.", armed: c.n>=4 && (c.n - c.manualHits) > c.n/2 && c.pain!==null && c.pain<1, eval: c.n>=4 },
-    { t:"No referrals across 6+ interviews → network effect won't carry acquisition.", armed: c.n>=6 && c.refHits===0, eval: c.n>=6 }
-  ];
-  $("killList").innerHTML = rules.map(r=>{
-    const cls = !r.eval ? "" : (r.armed ? " armed" : " clear");
-    const tag = !r.eval ? "PENDING" : (r.armed ? "TRIGGERED" : "CLEAR");
-    return `<div class="row"><div class="st${cls}">${tag}</div><div>${esc(r.t)}</div></div>`;
-  }).join("");
-}
+    <header class="topbar">
+      <button class="topbar-menu" id="menu-toggle" aria-label="Toggle navigation">≡</button>
+      <div class="topbar-crumb" id="topbar-crumb">/ HOME</div>
+      <div class="topbar-status">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">SYNCING</span>
+      </div>
+    </header>
 
-function render(){ renderGauge(); renderGrid(); renderProbe(); renderKill(); }
+    <!-- ---- HERO (route: /) ---- -->
+    <section class="view" id="view-home" data-view="home">
+      <section class="hero">
+        <div class="hero-tag">HANDFILM // AI CHARACTER CONSISTENCY EXPERIMENT</div>
+        <h1 class="hero-title">RAWX<br>MOTION<span class="accent-dot">.</span>LAB</h1>
+        <p class="hero-sub">Thousands of character-consistent AI motion clips for lingerie &amp; activewear.</p>
+        <div class="hero-cta-row">
+          <a href="#grid" class="btn btn-primary" id="cta-browse">
+            Browse the registry <span class="arrow">→</span>
+          </a>
+          <a href="https://handfilm.myshopify.com/" target="_blank" rel="noopener" class="btn btn-ghost">
+            Shop Full Packs <span class="arrow">→</span>
+          </a>
+        </div>
+        <div class="hero-meta-row">
+          <div class="hero-meta"><b id="hero-stat-total">—</b><span>Total Clips</span></div>
+          <div class="hero-meta"><b id="hero-stat-chars">—</b><span>Categories</span></div>
+          <div class="hero-meta"><b>4</b><span>Pillars</span></div>
+        </div>
+      </section>
 
-/* ================= IO ================= */
-$("btnExport").addEventListener("click",()=>{
-  $("ioBox").value = JSON.stringify({ exported:new Date().toISOString(), volts:computed().volts.toFixed(2), state }, null, 1);
-  flash("EXPORTED — PASTE INTO MCC");
-});
-$("btnCopy").addEventListener("click",async()=>{
-  if(!$("ioBox").value) $("btnExport").click();
-  try{ await navigator.clipboard.writeText($("ioBox").value); flash("COPIED"); }
-  catch{ $("ioBox").select(); document.execCommand("copy"); flash("COPIED"); }
-});
-$("btnLoad").addEventListener("click",()=>{
-  try{
-    const p = JSON.parse($("ioBox").value);
-    if(p.state && Array.isArray(p.state.interviews)){ state = p.state; activeIdx=null; render(); flash("STATE RESTORED"); }
-    else flash("INVALID PAYLOAD");
-  }catch{ flash("PARSE ERROR"); }
-});
-$("btnWipe").addEventListener("click",()=>{
-  state.interviews.forEach(iv=>{ iv.name=""; iv.org=""; iv.scores={}; iv.done=false; });
-  activeIdx=null; render(); flash("WIPED");
-});
+      <section class="pillar-strip">
+        <a class="pillar-card" data-route="/signature" href="#/signature">
+          <span class="pillar-idx">01</span>
+          <h3>Signature</h3>
+          <p>Lingerie Dynamics &amp; Back View Studies</p>
+        </a>
+        <a class="pillar-card" data-route="/core" href="#/core">
+          <span class="pillar-idx">02</span>
+          <h3>Core</h3>
+          <p>Brand Infrastructure &amp; RAWX Merch</p>
+        </a>
+        <a class="pillar-card" data-route="/hook" href="#/hook">
+          <span class="pillar-idx">03</span>
+          <h3>Hook</h3>
+          <p>Anatomy &amp; Tension Dynamics</p>
+        </a>
+        <a class="pillar-card" data-route="/elegance" href="#/elegance">
+          <span class="pillar-idx">04</span>
+          <h3>Elegance</h3>
+          <p>Facial Architecture &amp; Micro-Expressions</p>
+        </a>
+      </section>
+    </section>
 
-/* ================= UTIL ================= */
-function esc(s){ return String(s??"").replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m])); }
-let flashT;
-function flash(msg){ const f=$("flash"); f.textContent=msg; f.classList.add("on"); clearTimeout(flashT); flashT=setTimeout(()=>f.classList.remove("on"),1800); }
+    <!-- ---- PROTOCOL BRIEF (shown only on pillar routes) ---- -->
+    <section class="ml-brief" id="ml-brief" hidden>
+      <div class="ml-brief-index" id="brief-index">01</div>
+      <div class="ml-brief-body">
+        <div class="ml-brief-tag" id="brief-tag">Flagship Protocol</div>
+        <h2 class="ml-brief-title" id="brief-title">Lingerie Motion AI</h2>
+        <p class="ml-brief-desc" id="brief-desc"></p>
+      </div>
+    </section>
 
-render();
-</script>
+    <!-- ---- GRID (shared across all routes) ---- -->
+    <section class="view" id="view-grid" data-view="grid">
+      <div class="grid-toolbar" id="grid">
+        <div class="grid-toolbar-left">
+          <h2 class="grid-title" id="grid-title">Full Registry</h2>
+          <span class="grid-count" id="grid-count">0 assets</span>
+        </div>
+        <div class="grid-toolbar-right">
+          <input type="search" id="grid-search" placeholder="SEARCH FILE / TAG" autocomplete="off">
+          <select id="grid-sort">
+            <option value="default">SORT: DEFAULT</option>
+            <option value="az">SORT: A–Z</option>
+            <option value="za">SORT: Z–A</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="asset-grid" id="asset-grid"></div>
+      <div class="grid-empty" id="grid-empty" hidden>NO ASSETS MATCH THIS QUERY — DROP MATCHING FILES INTO /assets TO POPULATE THIS TAB</div>
+      <button class="load-more-btn" id="load-more-btn" hidden>LOAD MORE <span id="load-more-count"></span></button>
+    </section>
+
+  </main>
+</div>
+
+<!-- ================= LIGHTBOX ================= -->
+<div class="lightbox" id="lightbox" aria-hidden="true">
+  <div class="lb-frame">
+    <div class="lb-head">
+      <span id="lb-title">ASSET</span>
+      <div class="lb-head-actions">
+        <button id="lb-pin-btn" class="lb-icon-btn" title="Pin to board">PIN</button>
+        <button id="lb-close" class="lb-icon-btn lb-close" title="Close">✕</button>
+      </div>
+    </div>
+    <button class="lb-nav lb-prev" id="lb-prev" title="Previous">‹</button>
+    <div class="lb-media" id="lb-media"></div>
+    <button class="lb-nav lb-next" id="lb-next" title="Next">›</button>
+    <div class="lb-meta">
+      <div class="lb-meta-row"><span>ITEM</span><b id="lb-character">—</b></div>
+      <div class="lb-meta-row"><span>PILLAR</span><b id="lb-pillar">—</b></div>
+      <div class="lb-meta-row"><span>IN CATEGORY</span><b id="lb-set-count">—</b></div>
+      <button class="btn btn-primary btn-block" onclick="window.open('https://handfilm.myshopify.com/', '_blank')">
+        INITIATE B2B INQUIRY <span class="arrow">→</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= B2B TERMINAL / BOARD MODAL ================= -->
+<div class="modal-overlay" id="board-modal-overlay">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span>B2B TERMINAL // BOARD</span>
+      <button id="board-modal-close" class="lb-icon-btn lb-close">✕</button>
+    </div>
+
+    <div class="modal-body" id="modal-body-empty">
+      <p class="modal-empty-text">NO ASSETS PINNED YET.<br>Pin references from the grid or lightbox to build a sourcing board, then submit a structured inquiry.</p>
+    </div>
+
+    <div class="board-thumbs" id="board-thumbs"></div>
+
+    <form class="inquiry-form" id="inquiry-form">
+      <div class="form-row">
+        <label>COMPANY</label>
+        <input type="text" id="inq-company" placeholder="COMPANY NAME" required>
+      </div>
+      <div class="form-row">
+        <label>EMAIL</label>
+        <input type="email" id="inq-email" placeholder="YOU@COMPANY.COM" required>
+      </div>
+      <div class="form-row">
+        <label>NOTES</label>
+        <textarea id="inq-notes" rows="3" placeholder="MOQ, TIMELINE, SIZE RUN, ETC."></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">
+        SUBMIT INQUIRY <span class="arrow">→</span>
+      </button>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
 </body>
 </html>

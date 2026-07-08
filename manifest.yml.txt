@@ -1,0 +1,28 @@
+name: Rebuild asset manifest
+
+on:
+  push:
+    paths:
+      - 'assets/**'
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild-manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate manifest.json from /assets filenames
+        run: node generate-manifest.js
+
+      - name: Commit updated manifest
+        run: |
+          git config user.name "manifest-bot"
+          git config user.email "actions@github.com"
+          git add assets/manifest.json
+          git diff --staged --quiet || git commit -m "chore: auto-update assets/manifest.json"
+          git push
