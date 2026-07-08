@@ -327,8 +327,10 @@
         var poster = p.provider === 'drive' ? p.poster : '';
         media = '<video class="asset-card-video" src="' + videoSrc + '"' +
           (poster ? ' poster="' + poster + '"' : '') +
-          ' muted loop playsinline preload="metadata" data-autoplay="1"></video>' +
-          '<span class="asset-card-play">▶</span>';
+          ' muted loop playsinline autoplay preload="auto" data-autoplay="1"></video>' +
+          '<span class="asset-card-play">▶</span>' +
+          '<span class="asset-card-duration" hidden>0:00</span>' +
+          '<div class="asset-card-progress"><span></span></div>';
       } else {
         media = '<img src="' + p.src + '" alt="' + p.title + '" loading="lazy">';
       }
@@ -339,8 +341,38 @@
 
       if (p.isVideo) {
         var v = card.querySelector('video');
-        card.addEventListener('mouseenter', function () { v.play().catch(function () {}); });
-        card.addEventListener('mouseleave', function () { v.pause(); });
+        var durEl = card.querySelector('.asset-card-duration');
+        var progressBar = card.querySelector('.asset-card-progress span');
+
+        // Try to start playing right away (muted autoplay is allowed by all
+        // major browsers). setupScrollAutoplay() below will pause it again
+        // if the card isn't actually on-screen, and resume it as it scrolls in.
+        v.play().catch(function () {});
+
+        v.addEventListener('loadedmetadata', function () {
+          if (isFinite(v.duration)) {
+            durEl.hidden = false;
+            durEl.textContent = formatDuration(v.duration);
+          }
+        });
+        v.addEventListener('timeupdate', function () {
+          if (v.duration) progressBar.style.width = (v.currentTime / v.duration * 100) + '%';
+        });
+
+        // Hover-scrub: moving the pointer left→right across the thumbnail
+        // scrubs through the clip, like a quick preview reel.
+        var scrubbing = false;
+        card.addEventListener('mouseenter', function () { scrubbing = true; v.play().catch(function () {}); });
+        card.addEventListener('mouseleave', function () {
+          scrubbing = false;
+          v.play().catch(function () {}); // resume normal loop autoplay
+        });
+        card.addEventListener('mousemove', function (e) {
+          if (!scrubbing || !v.duration) return;
+          var rect = card.getBoundingClientRect();
+          var pct = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
+          v.currentTime = pct * v.duration;
+        });
       }
 
       card.querySelector('.asset-card-pin').addEventListener('click', function (e) {
@@ -362,6 +394,14 @@
     }
 
     setupScrollAutoplay();
+    setupInfiniteScroll();
+  }
+
+  function formatDuration(sec) {
+    sec = Math.round(sec);
+    var m = Math.floor(sec / 60);
+    var s = sec % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
   }
 
   /* ---------------- Scroll-triggered autoplay (grid) ---------------- */
@@ -378,6 +418,8 @@
     var videos = document.querySelectorAll('#asset-grid video[data-autoplay="1"]');
     if (!videos.length || typeof IntersectionObserver === 'undefined') return;
 
+    // rootMargin starts the clip a little before it's fully on-screen, so
+    // playback feels already-in-motion by the time it scrolls into view.
     scrollObserver = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
         var vid = entry.target;
@@ -387,9 +429,27 @@
           vid.pause();
         }
       });
-    }, { root: null, threshold: 0.4 });
+    }, { root: null, rootMargin: '200px 0px', threshold: 0.15 });
 
     videos.forEach(function (vid) { scrollObserver.observe(vid); });
+  }
+
+  /* ---------------- Infinite scroll (auto "load more") ---------------- */
+  var infiniteObserver = null;
+
+  function setupInfiniteScroll() {
+    if (infiniteObserver) { infiniteObserver.disconnect(); infiniteObserver = null; }
+    var sentinel = document.getElementById('load-more-btn');
+    if (!sentinel || sentinel.hidden || typeof IntersectionObserver === 'undefined') return;
+
+    infiniteObserver = new IntersectionObserver(function (entries) {
+      if (entries[0].isIntersecting && state.visibleCount < state.filtered.length) {
+        state.visibleCount += 24;
+        renderGrid();
+      }
+    }, { root: null, rootMargin: '400px 0px' });
+
+    infiniteObserver.observe(sentinel);
   }
 
   /* ---------------- Lightbox ---------------- */
@@ -539,9 +599,23 @@
     document.getElementById('lb-fullscreen-btn').addEventListener('click', function () {
       var vid = document.getElementById('lb-video');
       if (!vid) return;
-      if (vid.requestFullscreen) vid.requestFullscreen();
-      else if (vid.webkitEnterFullscreen) vid.webkitEnterFullscreen(); // iOS Safari
-      else if (vid.webkitRequestFullscreen) vid.webkitRequestFullscreen();
+      var req = vid.requestFullscreen || vid.webkitRequestFullscreen || vid.webkitEnterFullscreen;
+      if (req) {
+        var result = req.call(vid);
+        // Some browsers pause the element mid fullscreen-transition;
+        // force it back into playback once the transition settles.
+        if (result && typeof result.then === 'function') {
+          result.then(function () { vid.play().catch(function () {}); });
+        } else {
+          setTimeout(function () { vid.play().catch(function () {}); }, 50);
+        }
+      }
+    });
+    ['fullscreenchange', 'webkitfullscreenchange'].forEach(function (evt) {
+      document.addEventListener(evt, function () {
+        var fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+        if (fsEl && fsEl.tagName === 'VIDEO') fsEl.play().catch(function () {});
+      });
     });
     document.getElementById('lb-pin-btn').addEventListener('click', function () {
       togglePin(state.filtered[lbIndex]);
@@ -582,11 +656,19 @@
     });
 
     document.addEventListener('keydown', function (e) {
+      var typing = /INPUT|TEXTAREA/.test(document.activeElement.tagName);
       if (document.getElementById('lightbox').classList.contains('open')) {
         if (e.key === 'Escape') closeLightbox();
         if (e.key === 'ArrowLeft') lbStep(-1);
         if (e.key === 'ArrowRight') lbStep(1);
+        if (e.key === 'f' || e.key === 'F') document.getElementById('lb-fullscreen-btn').click();
+        return;
       }
+      if (typing) return;
+      if (e.key === 's' || e.key === 'S') document.getElementById('grid-shuffle-btn').click();
+      if (e.key === '1') setGridSize('s');
+      if (e.key === '2') setGridSize('m');
+      if (e.key === '3') setGridSize('l');
     });
   }
 
