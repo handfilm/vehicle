@@ -13,6 +13,18 @@
   var VIDEO_EXT = ['mp4', 'webm', 'mov', 'm4v'];
   var KIND_ORDER = ['signature', 'core', 'hook', 'elegance'];
 
+  // ---- Google Drive source (optional) ----
+  // Fill these in to fetch assets from a public Google Drive folder
+  // instead of the local /assets folder. Leave blank to use local files.
+  //   1. Google Cloud Console -> enable "Google Drive API" -> create an API key
+  //      -> restrict it to your GitHub Pages domain (HTTP referrer restriction)
+  //   2. Share the Drive folder as "Anyone with the link — Viewer"
+  //   3. Paste the folder ID (from the folder's URL) and the API key below
+  var CONFIG = {
+    driveFolderId: '18l_AwP-NahTgiLvkBj8vsEhThfZSvcty',
+    driveApiKey: 'AIzaSyCqU3qT5SaRYTZev6ZfChJvApRDGDzv88Y'
+  };
+
   var PROTOCOLS = {
     signature: {
       index: '01',
@@ -82,11 +94,61 @@
   }
 
   function loadRegistry() {
+    if (CONFIG.driveFolderId && CONFIG.driveApiKey) {
+      setBootStatus('READING GOOGLE DRIVE FOLDER…');
+      return fetchDriveManifest().catch(function (err) {
+        console.error(err);
+        setBootStatus('DRIVE FETCH FAILED — FALLING BACK TO /assets…');
+        return loadLocalRegistry();
+      });
+    }
+    return loadLocalRegistry();
+  }
+
+  function parseDriveFile(file, i) {
+    var m = file.name.match(/^([a-z]+)-(.+)\.[a-z0-9]+$/i);
+    if (!m) return null;
+    var kind = m[1].toLowerCase();
+    if (KIND_ORDER.indexOf(kind) === -1) return null;
+    var slug = m[2];
+    var isVideo = !!(file.mimeType && file.mimeType.indexOf('video/') === 0);
+    return {
+      id: i,
+      kind: kind,
+      slug: slug,
+      title: titleFromSlug(slug),
+      provider: 'drive',
+      driveId: file.id,
+      isVideo: isVideo,
+      src: 'https://drive.google.com/thumbnail?id=' + file.id + '&sz=w800'
+    };
+  }
+
+  function fetchDriveManifest() {
+    var q = encodeURIComponent("'" + CONFIG.driveFolderId + "' in parents and trashed = false");
+    var url = 'https://www.googleapis.com/drive/v3/files?q=' + q +
+      '&key=' + CONFIG.driveApiKey +
+      '&fields=' + encodeURIComponent('files(id,name,mimeType)') +
+      '&pageSize=1000';
+
+    return fetch(url).then(function (r) {
+      if (!r.ok) throw new Error('Drive API error: ' + r.status);
+      return r.json();
+    }).then(function (data) {
+      var files = data.files || [];
+      state.all = files.map(parseDriveFile).filter(Boolean);
+      document.getElementById('stat-source').textContent = 'Google Drive';
+      return state.all;
+    });
+  }
+
+  function loadLocalRegistry() {
     setBootStatus('READING /assets/manifest.json…');
     return fetchJSON('assets/manifest.json')
       .then(function (data) {
         state.all = data.map(function (item, i) {
           item.id = i;
+          item.provider = 'local';
           if (item.title === undefined) item.title = titleFromSlug(item.slug || '');
           return item;
         });
@@ -101,7 +163,7 @@
             state.all = files
               .map(parseFilename)
               .filter(Boolean)
-              .map(function (item, i) { item.id = i; return item; });
+              .map(function (item, i) { item.id = i; item.provider = 'local'; return item; });
             document.getElementById('stat-source').textContent = 'files.json';
             return state.all;
           })
@@ -224,15 +286,17 @@
       card.className = 'asset-card';
       card.dataset.id = p.id;
 
-      var media = p.isVideo
-        ? '<video src="' + p.src + '" muted loop playsinline preload="metadata"></video>'
-        : '<img src="' + p.src + '" alt="' + p.title + '" loading="lazy">';
+      var media = p.provider === 'drive'
+        ? '<img src="' + p.src + '" alt="' + p.title + '" loading="lazy">' + (p.isVideo ? '<span class="asset-card-play">▶</span>' : '')
+        : (p.isVideo
+            ? '<video src="' + p.src + '" muted loop playsinline preload="metadata"></video>'
+            : '<img src="' + p.src + '" alt="' + p.title + '" loading="lazy">');
 
       card.innerHTML = media +
         '<div class="asset-card-label"><span>' + p.title + '</span><span class="asset-card-kind">' + p.kind + '</span></div>' +
         '<button class="asset-card-pin' + (isPinned(p) ? ' pinned' : '') + '" title="Pin">' + (isPinned(p) ? '\u2713' : '+') + '</button>';
 
-      if (p.isVideo) {
+      if (p.isVideo && p.provider !== 'drive') {
         var v = card.querySelector('video');
         card.addEventListener('mouseenter', function () { v.play().catch(function () {}); });
         card.addEventListener('mouseleave', function () { v.pause(); });
@@ -272,9 +336,15 @@
     var p = state.filtered[lbIndex];
     if (!p) return;
     var stage = document.getElementById('lb-media');
-    stage.innerHTML = p.isVideo
-      ? '<video src="' + p.src + '" controls autoplay loop></video>'
-      : '<img src="' + p.src + '" alt="' + p.title + '">';
+    if (p.provider === 'drive') {
+      stage.innerHTML = p.isVideo
+        ? '<iframe src="https://drive.google.com/file/d/' + p.driveId + '/preview" allow="autoplay" allowfullscreen frameborder="0"></iframe>'
+        : '<img src="https://drive.google.com/thumbnail?id=' + p.driveId + '&sz=w2000" alt="' + p.title + '">';
+    } else {
+      stage.innerHTML = p.isVideo
+        ? '<video src="' + p.src + '" controls autoplay loop></video>'
+        : '<img src="' + p.src + '" alt="' + p.title + '">';
+    }
 
     document.getElementById('lb-title').textContent = p.title.toUpperCase() + ' \u2014 ' + (lbIndex + 1) + ' / ' + state.filtered.length;
     document.getElementById('lb-character').textContent = p.title;
@@ -310,7 +380,7 @@
     pinnedItems.forEach(function (p) {
       var thumb = document.createElement('div');
       thumb.className = 'board-thumb';
-      thumb.innerHTML = (p.isVideo
+      thumb.innerHTML = (p.provider !== 'drive' && p.isVideo
         ? '<video src="' + p.src + '" muted></video>'
         : '<img src="' + p.src + '" alt="' + p.title + '">') +
         '<button title="Remove">\u2715</button>';
